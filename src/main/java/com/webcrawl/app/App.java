@@ -7,16 +7,14 @@ import java.net.URISyntaxException;
 
 /**
  * Hello world!
- *
  */
 
 
-public class App 
-{
+public class App {
 
-    public static void main( String[] args )
-    {
-        System.out.println( "Hello World!" );
+    public static void main(String[] args) {
+        int numThreads = 0;
+        Long maxGraphSize;
         // create the command line parser
         CommandLineParser parser = new DefaultParser();
 
@@ -26,6 +24,7 @@ public class App
         //get cmd
         options.addOption("s", true, "seed Url");
         options.addOption("w", true, "number of workerThread threads");
+        options.addOption("gs", true, "number of workerThread threads");
 
         try {
             // parse the command line arguments
@@ -34,7 +33,7 @@ public class App
             // validate that block-size has been set
             if (line.hasOption("w")) {
                 // print the value of block-size
-                int numThreads = Integer.parseInt(line.getOptionValue("w"));
+                numThreads = Integer.parseInt(line.getOptionValue("w"));
 
                 try {
                     URI seedURL = new URI(line.getOptionValue("s"));
@@ -44,8 +43,14 @@ public class App
                 }
 
             }
+
+            maxGraphSize = Long.parseLong(line.getOptionValue("gs"));
+
+            //start webcrawler
+            webCrawler webCrawler = new webCrawler(numThreads, maxGraphSize);
+
         } catch (ParseException exp) {
-            System.out.println("Unexpected exception:" + exp.getMessage());
+            exp.printStackTrace();
             System.exit(1);
         }
 
