@@ -7,22 +7,47 @@ import java.util.LinkedList;
  * Created by jordan on 06/12/16.
  */
 public class siteNode {
-    private URL host;
-    private LinkedList<String> edges;
+    private URL url;
+    private LinkedList<URL> outGoingEdges;
+    private LinkedList<URL> incomingEdges;
+    private int distanceFromRoot;
 
-    public siteNode(URL hostAddress) {
-        this.host = hostAddress;
-        this.edges = new LinkedList<String>();
+    public siteNode(URL hostAddress, URL parentNode, int distanceFromRoot) {
+        this.url = hostAddress;
+        this.outGoingEdges = new LinkedList<URL>();
+        this.incomingEdges = new LinkedList<URL>();
+        if (parentNode != null) {
+            incomingEdges.add(parentNode);
+        }
+        this.distanceFromRoot = distanceFromRoot;
     }
 
-    public void addEdge(String s) {
+    public URL getURL() {
+        return this.url;
+    }
 
-        edges.add(s);
+    public boolean addOutGoingEdge(URL s) {
+
+        outGoingEdges.add(s);
+        return true;
 
     }
 
-    public LinkedList getEdges() {
-        return edges;
+
+    public boolean addIncomingEdges(URL s) {
+
+        incomingEdges.add(s);
+        return true;
+
+    }
+
+
+    public LinkedList getOutGoingEdges() {
+        return outGoingEdges;
+    }
+
+    public int getDistanceFromRoot() {
+        return distanceFromRoot;
     }
 
 }

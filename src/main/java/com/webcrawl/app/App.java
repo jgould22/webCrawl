@@ -48,6 +48,7 @@ public class App {
 
             //start webcrawler
             webCrawler webCrawler = new webCrawler(numThreads, maxGraphSize);
+            webCrawler.startCrawl(line.getOptionValue("s"));
 
         } catch (ParseException exp) {
             exp.printStackTrace();
