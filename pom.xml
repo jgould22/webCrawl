@@ -46,6 +46,13 @@
           <version>3.0.7</version>
           <scope>main</scope>
       </dependency>
+      <!-- https://mvnrepository.com/artifact/com.github.crawler-commons/crawler-commons -->
+      <dependency>
+          <groupId>com.github.crawler-commons</groupId>
+          <artifactId>crawler-commons</artifactId>
+          <version>0.7</version>
+      </dependency>
+
 
   </dependencies>
 

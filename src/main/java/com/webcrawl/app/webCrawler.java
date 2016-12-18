@@ -1,13 +1,12 @@
 package com.webcrawl.app;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Comparator;
-import java.util.HashSet;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -16,24 +15,6 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class webCrawler {
 
-    //Hashmap to keep track of which documents have been crawled as well as documents that should
-    private ConcurrentHashMap<URL, siteNode> graph;
-    //Number of crawling threads
-    private int numThreads;
-    //this is the queue of sites to be crawler, the "frontier" of the graph
-    private PriorityBlockingQueue<siteNode> frontierQueue;
-    //Graph size counter
-    private AtomicLong graphSize;
-    //maximum size of the graph
-    private Long maxGraphSize;
-    //The graph root
-    private siteNode root;
-    //HashSet of hosted visted
-    private HashSet<URL> hostsVistied;
-    //nodesVisite Hashset of visited nodes
-    private HashSet<URL> nodesVisited;
-
-
     private Comparator<siteNode> nodeCompare = new Comparator<siteNode>() {
         @Override
         public int compare(siteNode one, siteNode two) {
@@ -41,93 +22,69 @@ public class webCrawler {
         }
     };
 
+    //Number of crawling threads
+    private int numThreads;
+    //this is the queue of sites to be crawler, the "frontier" of the graph
+    private PriorityBlockingQueue<siteNode> frontierQueue = new PriorityBlockingQueue<siteNode>(11, nodeCompare);
+    //Graph size counter
+    private AtomicLong graphSizeCounter = new AtomicLong();
+    //maximum size of the graph
+    private Long maxGraphSize;
+
+    private LinkedBlockingQueue<siteNode> finishedQueue = new LinkedBlockingQueue<siteNode>();
+
+    private urlFilter filter;
 
     //creates threads and places seed urls in queue
     public webCrawler(int numThreads, Long maxGraphSize) {
 
         this.numThreads = numThreads;
         this.maxGraphSize = maxGraphSize;
-        this.frontierQueue = new PriorityBlockingQueue<siteNode>(11, nodeCompare);
-        this.graph = new ConcurrentHashMap<URL, siteNode>();
-        this.hostsVistied = new HashSet<URL>();
-        this.graphSize = new AtomicLong();
+        this.filter = urlFilter.getInstance();
 
     }
 
     public void startCrawl(String seedUrl) {
 
-        //create root Node and add to frontier
         try {
-            //Create new root node
-            this.root = new siteNode(new URL(seedUrl), null, 0);
-            //add root node to the frontier
-            frontierQueue.put(this.root);
-            graphSize.incrementAndGet();
-        } catch (MalformedURLException e) {
-            System.out.println(e);
-        }
+            URL rootURL = new URL(seedUrl);
 
-        ThreadPoolExecutor executor;
-        executor = new ThreadPoolExecutor(5, numThreads, 60, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>());
+            siteNode rootNode = new siteNode(rootURL, null, 0);
 
-        //Increment for each loop until max graph size is met
-        while (graphSize.getAndIncrement() <= maxGraphSize) {
+            if (!filter.urlAlreadyVisited(rootURL)) {
 
-            //take from frontier and submit to thread poo
-            //                 //take urlString from frontierQueue
-            try {
+                frontierQueue.put(rootNode);
+                ExecutorService executor = Executors.newCachedThreadPool();
 
-                siteNode node = frontierQueue.take();
-                if (!hostsVistied.contains(node.getURL())) {
+                for (int i = 0; i < numThreads; i++) {
+                    Runnable worker = new workerThread(frontierQueue, finishedQueue, graphSizeCounter, maxGraphSize, filter);
+                    executor.execute(worker);
+                }
 
-                    robotTxtHandler(node.getURL());
+                int count = 0;
+
+                while (true) {
+
+
+                    try {
+                        siteNode node = finishedQueue.take();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+
+                    count += 1;
+                    System.out.println(count);
 
                 }
 
-                Runnable worker = new workerThread(node, frontierQueue, graph);
-                executor.submit(worker);
-
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
+        } catch (MalformedURLException e) {
 
-        }
-
-        // Tell threads to finish off since graph is now max size
-        System.out.println("Done crawling, waiting for threads to finish");
-
-        executor.shutdown();
-        try {
-            while (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
-            }
-        } catch (InterruptedException e) {
             e.printStackTrace();
-        }
-
-        System.out.println("Finished ");
-
-
-        //print all the nodes in teh graph
-        for (URL url : graph.keySet()) {
-
-            System.out.println(url.toString());
 
         }
 
-    }
-
-    private void robotTxtHandler(URL url) {
-
-        try (BufferedReader in = new BufferedReader(
-                new InputStreamReader(new URL("http://" + url.getHost() + "/robots.txt").openStream()))) {
-            String line = null;
-            while ((line = in.readLine()) != null) {
-                System.out.println(line);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
     }
 

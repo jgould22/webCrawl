@@ -12,11 +12,10 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
-
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  *
@@ -25,56 +24,76 @@ import java.util.concurrent.PriorityBlockingQueue;
 
 public class workerThread implements Runnable {
 
+    private static final siteNode POISON_PILL = new siteNode();
     //this is the frontierQueue of sites to be crawled
     private PriorityBlockingQueue<siteNode> frontierQueue;
-    //Set of visited nodes so no node is visited twice
-    private ConcurrentHashMap.KeySetView<URL, siteNode> graph;
     //the node for this thread to crawl
-    private siteNode node;
-    private HashSet visited;
-
-
+    private LinkedBlockingQueue<siteNode> finishedQueue;
+    private AtomicLong graphCounter;
+    private Long maxGraphSize;
+    private urlFilter filter;
     //Constructor for class
-    public workerThread(siteNode node,
-                        PriorityBlockingQueue<siteNode> frontierQueue,
-                        ConcurrentHashMap<URL, siteNode> graph) {
+    public workerThread(PriorityBlockingQueue<siteNode> frontierQueue,
+                        LinkedBlockingQueue<siteNode> finishedQueue,
+                        AtomicLong graphCounter,
+                        Long maxGraphSize,
+                        urlFilter filter) {
 
         this.frontierQueue = frontierQueue;
-        this.graph = graph.keySet();
-        this.node = node;
+        this.finishedQueue = finishedQueue;
+        this.graphCounter = graphCounter;
+        this.maxGraphSize = maxGraphSize;
+        this.filter = filter;
 
     }
 
     @Override
     public void run() {
 
+        while (true) {
+            try {
 
-        graph.getMap().put(node.getURL(), node);
-        //Download page
-        String page = downaloadPage(node.getURL());
-        //Parse it for links
-        node = parsePage(node, page);
+                siteNode node = frontierQueue.take();
+
+                if (node == POISON_PILL) {
+                    frontierQueue.add(POISON_PILL);
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                //Download page
+                String page = downaloadPage(node.getURL());
+                //Parse it for links
+                node = parsePage(node, page);
+
+                LinkedList<URL> edges = node.getOutGoingEdges();
+
+                for (URL edge : edges) {
+
+                    //check if it is visited
+                    siteNode newNode = new siteNode(edge, node.getURL(), node.getDistanceFromRoot() + 1);
+                    if (!filter.urlAlreadyVisited(edge)) {
+                        //Increment the counter so graph remains proper size
+                        if (graphCounter.getAndIncrement() <= maxGraphSize)
+                            frontierQueue.add(newNode);
+                        else {   //graph size has been reached, insert pill to shut down threads
+                            frontierQueue.add(POISON_PILL);
+                            break;
+                        }
+
+                    }
+
+                }
+
+                //return the node
+                finishedQueue.put(node);
 
 
-        //validate the edges
-        LinkedList<URL> edges = node.getOutGoingEdges();
+            } catch (InterruptedException e) {
 
-        for (URL edge : edges) {
+                e.printStackTrace();
 
-            //check if it is visited
-            siteNode newNode = new siteNode(edge, node.getURL(), node.getDistanceFromRoot() + 1);
-            if (alreadyVisitedEdge(edge)) {
-                graph.getMap().get(edge).addIncomingEdges(node.getURL());
-            } else {
-                frontierQueue.add(newNode);
             }
-
         }
-        //add the node to the graph
-
-        //work done shutdown and exit thread
-        Thread.currentThread().interrupt();
-        return;
 
     }
 
@@ -136,76 +155,5 @@ public class workerThread implements Runnable {
 
     }
 
-    /*
-    This class contains the rules for adding the edge to the graph, returns true if edge can be added
-     */
-    private boolean validateEdge(URL url) {
-
-        //check that it has already been visited
-        if (alreadyVisitedEdge(url)) {
-            System.out.println("Already Crawled " + url.toString());
-            return false;
-        }
-
-        //no exclusion rules apply so return true to add the edge
-        return true;
-
-    }
-
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    //Below are the URL validation rules, if one of the results returns true, the edge is not added  //
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private boolean alreadyVisitedEdge(URL edgeURL) {
-
-        return graph.contains(edgeURL);
-
-    }
-
-    private void addRobots(URL url) {
-
-        try (BufferedReader in = new BufferedReader(
-                new InputStreamReader(new URL("http://google.com/robots.txt").openStream()))) {
-            String line = null;
-            while ((line = in.readLine()) != null) {
-                System.out.println(line);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
-
 
 }
-
-/*
-
-
-
-                //Check Edge Validity and add it to the node
-                if (validateEdge(newURL)) {
-                    //add edge to node since it is valid
-                 //   System.out.println(newURL.toString() + " Added to Frontier");
-                    //Add edge to node
-
-                }
-
-
-
-
-                for (URL edge : edges) {
-
-                    try {
-                        //transfer this to main crawl loop
-                        frontierQueue.put(edge);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                }
-
- */
-
-

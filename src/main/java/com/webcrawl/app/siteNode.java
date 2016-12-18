@@ -12,6 +12,14 @@ public class siteNode {
     private LinkedList<URL> incomingEdges;
     private int distanceFromRoot;
 
+    //for poison pill
+    public siteNode() {
+        this.url = null;
+        this.outGoingEdges = null;
+        this.incomingEdges = null;
+    }
+
+
     public siteNode(URL hostAddress, URL parentNode, int distanceFromRoot) {
         this.url = hostAddress;
         this.outGoingEdges = new LinkedList<URL>();
