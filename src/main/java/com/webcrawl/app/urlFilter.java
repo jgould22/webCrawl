@@ -1,5 +1,8 @@
 package com.webcrawl.app;
 
+import crawlercommons.robots.BaseRobotRules;
+import crawlercommons.robots.SimpleRobotRules;
+import crawlercommons.robots.SimpleRobotRulesParser;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -8,7 +11,9 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 
 /**
  * Created by jordan on 16/12/16.
@@ -23,6 +28,7 @@ public class urlFilter {
     private HashSet<String> hostsVistied;
     //nodesVisite Hashset of visited nodes
     private HashSet<URL> nodesVisited;
+    private Map<String, BaseRobotRules> robotsTxtRules;
 
     protected urlFilter() {
         // Exists only to defeat instantiation.
@@ -33,9 +39,11 @@ public class urlFilter {
             instance = new urlFilter();
             instance.hostsVistied = new HashSet<String>();
             instance.nodesVisited = new HashSet<URL>();
+            instance.robotsTxtRules = new HashMap<String, BaseRobotRules>();
         }
         return instance;
     }
+
 
     //Test harness for urlFiler
     public static void main(String[] args) {
@@ -69,6 +77,50 @@ public class urlFilter {
     //Returns true if url has already been visited
     public synchronized boolean urlAlreadyVisited(URL url) {
 
+        String hostId = url.getProtocol() + "://" + url.getHost()
+                + (url.getPort() > -1 ? ":" + url.getPort() : "");
+
+        //get the rule set for this host
+        BaseRobotRules rules = robotsTxtRules.get(hostId);
+        //if the rules dont exist
+        if (rules == null) {
+
+            try {
+
+                URL robotsurl = new URL(hostId + "/robots.txt");
+                BufferedReader bis;
+                String s;
+                String page = "";
+
+
+	        /* URL that the web crawler will download. You might change this
+             URL to download other pages                                   */
+                bis = new BufferedReader(new InputStreamReader(robotsurl.openStream()));
+
+                while ((s = bis.readLine()) != null) {
+                    page += s;
+                }
+                bis.close();
+
+                SimpleRobotRulesParser robotParser = new SimpleRobotRulesParser();
+                byte[] bytes = page.getBytes();
+                rules = robotParser.parseContent(hostId, bytes,
+                        "text/plain", "*");
+            } catch (MalformedURLException mue) {
+                mue.printStackTrace();
+            } catch (IOException ioe) {
+                rules = new SimpleRobotRules(SimpleRobotRules.RobotRulesMode.ALLOW_ALL);
+            }
+
+
+            robotsTxtRules.put(hostId, rules);
+
+        }
+
+        boolean urlAllowed = rules.isAllowed(url.toString());
+
+        return urlAllowed;
+/*
         //check to see if host has been visited
         if (!hostsVistied.contains(url.getHost())) {
 
@@ -83,6 +135,7 @@ public class urlFilter {
             return nodesVisited.contains(url);
 
         }
+*/
 
     }
 

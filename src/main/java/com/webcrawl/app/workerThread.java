@@ -15,6 +15,7 @@ import java.net.URL;
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -32,18 +33,21 @@ public class workerThread implements Runnable {
     private AtomicLong graphCounter;
     private Long maxGraphSize;
     private urlFilter filter;
+    private AtomicInteger blockingThreads;
     //Constructor for class
     public workerThread(PriorityBlockingQueue<siteNode> frontierQueue,
                         LinkedBlockingQueue<siteNode> finishedQueue,
                         AtomicLong graphCounter,
                         Long maxGraphSize,
-                        urlFilter filter) {
+                        urlFilter filter,
+                        AtomicInteger blockingThreads) {
 
         this.frontierQueue = frontierQueue;
         this.finishedQueue = finishedQueue;
         this.graphCounter = graphCounter;
         this.maxGraphSize = maxGraphSize;
         this.filter = filter;
+        this.blockingThreads = blockingThreads;
 
     }
 
@@ -51,15 +55,16 @@ public class workerThread implements Runnable {
     public void run() {
 
         while (true) {
+
             try {
 
+                //Increment counter so graph thread is aware of blocking
+                blockingThreads.getAndIncrement();
+                //
                 siteNode node = frontierQueue.take();
+                //Decrement because thread is no longer blocking
+                blockingThreads.getAndDecrement();
 
-                if (node == POISON_PILL) {
-                    frontierQueue.add(POISON_PILL);
-                    Thread.currentThread().interrupt();
-                    return;
-                }
                 //Download page
                 String page = downaloadPage(node.getURL());
                 //Parse it for links
@@ -69,28 +74,25 @@ public class workerThread implements Runnable {
 
                 for (URL edge : edges) {
 
-                    //check if it is visited
                     siteNode newNode = new siteNode(edge, node.getURL(), node.getDistanceFromRoot() + 1);
-                    if (!filter.urlAlreadyVisited(edge)) {
-                        //Increment the counter so graph remains proper size
-                        if (graphCounter.getAndIncrement() <= maxGraphSize)
-                            frontierQueue.add(newNode);
-                        else {   //graph size has been reached, insert pill to shut down threads
-                            frontierQueue.add(POISON_PILL);
-                            break;
-                        }
 
+                    if (graphCounter.get() <= maxGraphSize) {
+                        graphCounter.getAndIncrement();
+                        frontierQueue.put(newNode);
+                    } else {
+                        break;
                     }
 
                 }
 
-                //return the node
+                System.out.println("Added to finish queue " + node.getURL().toString());
                 finishedQueue.put(node);
-
 
             } catch (InterruptedException e) {
 
-                e.printStackTrace();
+                System.out.println("Terminating Thread ");
+                Thread.currentThread().interrupt();
+                return;
 
             }
         }

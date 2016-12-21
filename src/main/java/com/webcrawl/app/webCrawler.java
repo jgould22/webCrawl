@@ -3,10 +3,8 @@ package com.webcrawl.app;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Comparator;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -35,12 +33,16 @@ public class webCrawler {
 
     private urlFilter filter;
 
+    private AtomicInteger blockingThreads;
+
+
     //creates threads and places seed urls in queue
     public webCrawler(int numThreads, Long maxGraphSize) {
 
         this.numThreads = numThreads;
         this.maxGraphSize = maxGraphSize;
         this.filter = urlFilter.getInstance();
+        this.blockingThreads = new AtomicInteger(0);
 
     }
 
@@ -51,34 +53,40 @@ public class webCrawler {
 
             siteNode rootNode = new siteNode(rootURL, null, 0);
 
-            if (!filter.urlAlreadyVisited(rootURL)) {
-
                 frontierQueue.put(rootNode);
+
                 ExecutorService executor = Executors.newCachedThreadPool();
 
                 for (int i = 0; i < numThreads; i++) {
-                    Runnable worker = new workerThread(frontierQueue, finishedQueue, graphSizeCounter, maxGraphSize, filter);
+                    Runnable worker = new workerThread(frontierQueue, finishedQueue, graphSizeCounter, maxGraphSize, filter, blockingThreads);
                     executor.execute(worker);
                 }
 
-                int count = 0;
+
+            int count = 0;
 
                 while (true) {
 
-
                     try {
-                        siteNode node = finishedQueue.take();
+                        siteNode node = finishedQueue.poll(1, TimeUnit.SECONDS);
+                        //if the graph size has been reached or there are no active threads and the finished queue is empty break
+                        if ((node == null && blockingThreads.get() > 0 && frontierQueue.isEmpty() && finishedQueue.isEmpty())
+                                || count >= maxGraphSize) {
+                            System.out.println(count++);
+                            break;
+                        }
+
+
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
 
-
-                    count += 1;
-                    System.out.println(count);
+                    System.out.println(count++);
 
                 }
+            //Shut down the threads
+            executor.shutdownNow();
 
-            }
         } catch (MalformedURLException e) {
 
             e.printStackTrace();
