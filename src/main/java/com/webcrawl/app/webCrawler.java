@@ -14,6 +14,7 @@ import java.net.URL;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,7 +33,7 @@ public class webCrawler {
         }
     };
 
-    //Number of crawling threads
+    //Number of crawling threadsNumberFormatException
     private int numThreads;
     //this is the queue of sites to be crawler, the "frontier" of the graph
     private PriorityBlockingQueue<siteNode> frontierQueue = new PriorityBlockingQueue<siteNode>(11, nodeCompare);
@@ -40,22 +41,22 @@ public class webCrawler {
     private AtomicLong graphSizeCounter = new AtomicLong();
     //maximum size of the graph
     private Long maxGraphSize;
-
+    //Stores the edges that have been parsed so they can be placed in teh graph
     private LinkedBlockingQueue<siteNode> finishedQueue = new LinkedBlockingQueue<siteNode>();
-
+    //Filters URLs
     private urlFilter filter;
-
+    //Keeps track of the threads that are blocking
     private AtomicInteger blockingThreads;
-
+    //Site Graph
     private Graph graph;
-
+    //All pairs shortest path graph lib object
     private APSP apsp;
-
+    //Tarjans graph lib object
     private TarjanStronglyConnectedComponents tscc;
-
+    //Tool kit for other graph stats
     private Toolkit toolkit;
 
-    //creates threads and places seed urls in queue
+    //Constructor fpr web cralwer
     public webCrawler(int numThreads, Long maxGraphSize) {
 
         this.numThreads = numThreads;
@@ -80,50 +81,56 @@ public class webCrawler {
 
         System.out.println("Starting Crawl");
         try {
+
+            //Seed URLs
+            System.out.println("Webcrawler Seeded with ");
+
             URL rootURL = new URL(seedUrl);
-
+            System.out.print(rootURL.toString());
             siteNode rootNode = new siteNode(rootURL, null, 0);
-
+            //Add to queue
                 frontierQueue.put(rootNode);
 
-                ExecutorService executor = Executors.newCachedThreadPool();
 
-                for (int i = 0; i < numThreads; i++) {
-                    Runnable worker = new workerThread(frontierQueue, finishedQueue, graphSizeCounter, maxGraphSize, filter, blockingThreads);
-                    executor.execute(worker);
-                }
+            //Start Thread manager
+            ExecutorService executor = Executors.newCachedThreadPool();
+            //Start Thread
+            for (int i = 0; i < numThreads; i++) {
+                Runnable worker = new workerThread(frontierQueue, finishedQueue, graphSizeCounter, maxGraphSize, filter, blockingThreads);
+                executor.execute(worker);
+            }
 
 
             int count = 0;
 
-                while (true) {
+            while (true) {
 
-                    try {
+                try {
+                    //Poll queue for value, if no value continue with null
+                    siteNode node = finishedQueue.poll(1, TimeUnit.SECONDS);
 
-                        siteNode node = finishedQueue.poll(1, TimeUnit.SECONDS);
-
-                        if (node != null) {
-                            insertNode(node);
-                            count++;
-                        }
-
-                        //if the graph size has been reached or there are no active threads and the finished queue is empty break
-                        if ((node == null && blockingThreads.get() == 0 && frontierQueue.isEmpty() && finishedQueue.isEmpty())
-                                || count >= maxGraphSize) {
-                            break;
-                        }
-
-
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                    //If not null insert the pulled value
+                    if (node != null) {
+                        insertNode(node);
+                        count++;
                     }
 
+                    //if the graph size has been reached or there are no active threads and the finished queue is empty break
+                    if ((node == null && blockingThreads.get() == 0 && frontierQueue.isEmpty() && finishedQueue.isEmpty())
+                            || count >= maxGraphSize) {
+                        break;
+                    }
+
+
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
+
+            }
             //Shut down the threads
             executor.shutdownNow();
-
+            //Calculate and print the graph stats
             printGraphStats();
-            graph.display();
 
         } catch (MalformedURLException e) {
 
@@ -136,8 +143,10 @@ public class webCrawler {
 
     private void insertNode(siteNode node) {
 
+        //Get the out going edges list
         LinkedList<URL> edges = node.getOutGoingEdges();
 
+        //Loop through adding them as directed edge to the graph
         for (URL edge : edges) {
 
             try {
@@ -157,9 +166,10 @@ public class webCrawler {
         //Computer APSP using FW
         //apsp.compute();
 
+        //Get the degree distribution
         int[] distribution = Toolkit.degreeDistribution(graph);
 
-        System.out.println("Edge Distribution");
+        System.out.println("Edge Out-Degree Distribution");
         System.out.println("Number of Edges Edges/Number of Nodes");
         for (int i = 1; i < distribution.length; i++) {
 
@@ -168,7 +178,6 @@ public class webCrawler {
 
         }
         System.out.println("Average Edge Degree: " + Toolkit.averageDegree(graph));
-
 
         //Computer Strongly connected components with Tarjans
         System.out.println("Computing Strongly Connected Components");
@@ -184,15 +193,21 @@ public class webCrawler {
         //Computer APSP using FW
         System.out.println("Computing Average Path Length(This can take a while");
         apsp.compute();
-        long totalDistance = 0;
-        long totalPaths = 0;
+        float totalDistance = 0;
+        float totalPaths = 0;
+        //Calculate Average Shortest Path
         for (Node n : graph.getEachNode()) {
             APSPInfo info = n.getAttribute(APSPInfo.ATTRIBUTE_NAME);
-            info.targets.forEach((key, value) -> totalDistance += value.distance);)
-            totalPaths++;
+            for (Map.Entry<String, APSP.TargetPath> value : info.targets.entrySet()) {
+                APSP.TargetPath path = value.getValue();
+                totalDistance += path.distance;
+                totalPaths++;
+            }
         }
 
-        System.out.println("Average Shortest Path Length: " + totalDistance / totalPaths);
+        float average = totalDistance / totalPaths;
+        System.out.println("Average Shortest Path Length: " + average);
+        graph.display();
 
 
     }

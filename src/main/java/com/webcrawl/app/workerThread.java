@@ -19,8 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- *
- *
+ *This thread is spawed to make the crawler multi threaded
+ *It downloads and parses the pages
  */
 
 public class workerThread implements Runnable {
@@ -54,6 +54,7 @@ public class workerThread implements Runnable {
     @Override
     public void run() {
 
+        //Loop continously taking values from frontier and processing them
         while (true) {
 
             try {
@@ -99,6 +100,7 @@ public class workerThread implements Runnable {
 
     }
 
+    //DOwnloads the page
     private String downaloadPage(URL url) {
 
         BufferedReader bis;
@@ -121,36 +123,41 @@ public class workerThread implements Runnable {
         return page;
     }
 
+    //Parses the page using jsoup, attempts to normalize the links
     private siteNode parsePage(siteNode node, String page) {
         //Parse the page for links
-
-        Document doc = Jsoup.parse(page);
-        //Elements contains and the href and a tags contents
-        Elements links = doc.select("a[abs:href]");
-
-        //Loop through the links
-        for (Element link : links) {
-
+        if (page != "") {
             try {
+                Document doc = Jsoup.parse(page);
+                //Elements contains and the href and a tags contents
+                Elements links = doc.select("a[abs:href]");
 
-                URI newURI = new URI(link.attr("abs:href"));
+                //Loop through the links
+                for (Element link : links) {
 
-                //check if its absolute link
-                if (!newURI.isAbsolute()) {
-                    newURI.resolve(node.getURL().toURI());
+                    try {
+
+                        URI newURI = new URI(link.attr("abs:href"));
+
+                        //check if its absolute link
+                        if (!newURI.isAbsolute()) {
+                            newURI.resolve(node.getURL().toURI());
+                        }
+
+                        URL newURL = newURI.toURL();
+
+                        node.addOutGoingEdge(newURL);
+
+                    } catch (URISyntaxException e) {
+                    } catch (MalformedURLException e) {
+                    } catch (IllegalArgumentException e) {
+                    }
+
                 }
-
-                URL newURL = newURI.toURL();
-
-                node.addOutGoingEdge(newURL);
-
-            } catch (URISyntaxException e) {
-            } catch (MalformedURLException e) {
             } catch (IllegalArgumentException e) {
+
             }
-
         }
-
         return node;
 
     }

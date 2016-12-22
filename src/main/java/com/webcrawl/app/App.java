@@ -44,6 +44,7 @@ public class App {
 
             }
 
+            //Get max graph size option
             maxGraphSize = Long.parseLong(line.getOptionValue("gs"));
 
             //start webcrawler
