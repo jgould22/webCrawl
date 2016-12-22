@@ -36,8 +36,12 @@ public class siteNode {
 
     public boolean addOutGoingEdge(URL s) {
 
-        outGoingEdges.add(s);
-        return true;
+        if (outGoingEdges.contains(s))
+            return true;
+        else {
+            outGoingEdges.add(s);
+            return true;
+        }
 
     }
 

@@ -59,16 +59,18 @@ public class workerThread implements Runnable {
             try {
 
                 //Increment counter so graph thread is aware of blocking
-                blockingThreads.getAndIncrement();
+                blockingThreads.getAndDecrement();
                 //
                 siteNode node = frontierQueue.take();
                 //Decrement because thread is no longer blocking
-                blockingThreads.getAndDecrement();
+                blockingThreads.getAndIncrement();
 
                 //Download page
                 String page = downaloadPage(node.getURL());
                 //Parse it for links
                 node = parsePage(node, page);
+
+                filter.addURL(node.getURL());
 
                 LinkedList<URL> edges = node.getOutGoingEdges();
 
@@ -76,7 +78,7 @@ public class workerThread implements Runnable {
 
                     siteNode newNode = new siteNode(edge, node.getURL(), node.getDistanceFromRoot() + 1);
 
-                    if (graphCounter.get() <= maxGraphSize) {
+                    if (graphCounter.get() <= maxGraphSize && !filter.urlAlreadyVisited(edge)) {
                         graphCounter.getAndIncrement();
                         frontierQueue.put(newNode);
                     } else {
@@ -85,12 +87,10 @@ public class workerThread implements Runnable {
 
                 }
 
-                System.out.println("Added to finish queue " + node.getURL().toString());
                 finishedQueue.put(node);
 
             } catch (InterruptedException e) {
 
-                System.out.println("Terminating Thread ");
                 Thread.currentThread().interrupt();
                 return;
 
@@ -116,15 +116,14 @@ public class workerThread implements Runnable {
             }
             bis.close();
         } catch (MalformedURLException mue) {
-            mue.printStackTrace();
         } catch (IOException ioe) {
-            ioe.printStackTrace();
         }
         return page;
     }
 
     private siteNode parsePage(siteNode node, String page) {
         //Parse the page for links
+
         Document doc = Jsoup.parse(page);
         //Elements contains and the href and a tags contents
         Elements links = doc.select("a[abs:href]");
@@ -146,9 +145,8 @@ public class workerThread implements Runnable {
                 node.addOutGoingEdge(newURL);
 
             } catch (URISyntaxException e) {
-                e.printStackTrace();
             } catch (MalformedURLException e) {
-                e.printStackTrace();
+            } catch (IllegalArgumentException e) {
             }
 
         }
