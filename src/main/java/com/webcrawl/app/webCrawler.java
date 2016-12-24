@@ -186,7 +186,7 @@ public class webCrawler {
         HashSet<Integer> numComponents = new HashSet<Integer>();
         System.out.println("Number of Strongly Connected Components");
         for (Node n : graph.getEachNode())
-            numComponents.add(n.getAttribute("scc"));
+            numComponents.add((Integer) n.getAttribute("scc"));
         System.out.println(numComponents.size());
 
 
