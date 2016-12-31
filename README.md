@@ -1,4 +1,5 @@
 READ ME
+
 This is mainly a program for me to play around and learn some of Java's concurrency API, as such it is **NOT very robust or efficient**
 
 Once it has reached it max graph size it calculates a few statistics
@@ -21,7 +22,7 @@ in the folder with the pom.xml run "mvn package"
 
 Dependancies
 -Graphstream
-    -Algo
+    -algo
     -Core
 -jsoup
 
