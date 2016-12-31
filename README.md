@@ -27,7 +27,7 @@ in the folder with the pom.xml run "mvn package"
         * Core
     * jsoup
 
-*Limitations
+* Limitations
     * Tarjan's(SCC Algorithm) and Floyd–Warshall (APSP Algorithm) are used and are not very efficient, large graph sizes can take a great deal of time
     * No Robots.txt handing, this is not an ethical crawler 
     * No strong URL resolving, if there is an error, the URL is ignored and not crawled
