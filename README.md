@@ -2,17 +2,17 @@
 
 This is mainly a program for me to play around and learn some of Java's concurrency API, as such it is **NOT very robust or efficient**
 
-*Once it has reached it max graph size it calculates a few statistics
-    *-Average path length
-    *-Graph Diameter
-    *-Out-degree distribution
-    *-# of Strongly connected components
-    *-Displays basic graph image
+* Once it has reached it max graph size it calculates a few statistics
+    * -Average path length
+    * -Graph Diameter
+    * -Out-degree distribution
+    * -# of Strongly connected components
+    * -Displays basic graph image
 
-*This program takes 3 parameters, all are required
-    *-w, the number of worker threads
-    *-s the seed URL
-    *-gs the MAX graph size (number of internal nodes)
+* This program takes 3 parameters, all are required
+    * -w, the number of worker threads
+    * -s the seed URL
+    * -gs the MAX graph size (number of internal nodes)
 
 eg.
     *-w 10 -s http://www.brantford.ca -gs 50
