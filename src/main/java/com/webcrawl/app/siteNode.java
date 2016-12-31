@@ -54,7 +54,7 @@ public class siteNode {
     }
 
 
-    public LinkedList getOutGoingEdges() {
+    public LinkedList<URL> getOutGoingEdges() {
         return outGoingEdges;
     }
 

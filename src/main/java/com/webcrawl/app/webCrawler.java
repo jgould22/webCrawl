@@ -21,20 +21,19 @@ import java.util.concurrent.atomic.AtomicLong;
 
 
 /**
- * Created by jordan on 28/11/16.
- * This class implements runnable to create a thread that handles the creation and management of workerThread threads
+ * This class creates threads and computes graph stats
  */
+
 public class webCrawler {
 
-    private Comparator<siteNode> nodeCompare = new Comparator<siteNode>() {
-        @Override
+    private final Comparator<siteNode> nodeCompare = new Comparator<siteNode>() {
         public int compare(siteNode one, siteNode two) {
             return one.getDistanceFromRoot() - two.getDistanceFromRoot();
         }
     };
 
     //Number of crawling threadsNumberFormatException
-    private int numThreads;
+    private final int numThreads;
     //this is the queue of sites to be crawler, the "frontier" of the graph
     private PriorityBlockingQueue<siteNode> frontierQueue = new PriorityBlockingQueue<siteNode>(11, nodeCompare);
     //Graph size counter
@@ -152,8 +151,7 @@ public class webCrawler {
             try {
                 graph.addEdge(node.getURL().toString() + " " + edge.toString(), node.getURL().toString(), edge.toString(), true);
             } catch (IdAlreadyInUseException e) {
-
-
+                e.printStackTrace();
             }
 
         }
@@ -191,7 +189,7 @@ public class webCrawler {
 
 
         //Computer APSP using FW
-        System.out.println("Computing Average Path Length(This can take a while");
+        System.out.println("Computing Average Path Length(This can take a while)");
         apsp.compute();
         float totalDistance = 0;
         float totalPaths = 0;
