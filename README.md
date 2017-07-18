@@ -1,4 +1,4 @@
-#READ ME
+READ ME
 
 A basic web crawler in java 
 
@@ -8,7 +8,7 @@ This is mainly a program for me to play around and learn some of Java's concurre
     * Average path length
     * Graph Diameter
     * Out-degree distribution
-    * # of Strongly connected components
+    * Number of Strongly connected components
     * Displays basic graph image
 
 * This program takes 3 parameters, all are required
